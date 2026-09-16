@@ -8,6 +8,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -23,10 +24,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(ApiError.validation(req.getRequestURI(), errors));
     }
 
-    @ExceptionHandler(BadRequestException.class)
-    public ResponseEntity<ApiError> handleBadRequest(BadRequestException ex, HttpServletRequest req) {
+    @ExceptionHandler({BadRequestException.class, UnsupportedFileTypeException.class})
+    public ResponseEntity<ApiError> handleBadRequest(RuntimeException ex, HttpServletRequest req) {
         return ResponseEntity.badRequest()
                 .body(ApiError.of(400, "Bad Request", ex.getMessage(), req.getRequestURI()));
+    }
+
+    @ExceptionHandler({FileTooLargeException.class, MaxUploadSizeExceededException.class})
+    public ResponseEntity<ApiError> handleFileTooLarge(Exception ex, HttpServletRequest req) {
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .body(ApiError.of(413, "Payload Too Large", "The uploaded file exceeds the maximum allowed size", req.getRequestURI()));
     }
 
     @ExceptionHandler({EmailAlreadyExistsException.class, DuplicateResourceException.class})
