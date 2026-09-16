@@ -16,6 +16,7 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -85,6 +86,7 @@ public class Job extends BaseEntity {
     @Column(name = "published_at")
     private Instant publishedAt;
 
+    @BatchSize(size = 25)
     @OneToMany(mappedBy = "job", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<JobSkill> skills = new ArrayList<>();
 

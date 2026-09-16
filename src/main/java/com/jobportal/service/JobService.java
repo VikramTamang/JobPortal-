@@ -5,6 +5,8 @@ import com.jobportal.domain.job.JobStatus;
 import com.jobportal.domain.user.RecruiterProfile;
 import com.jobportal.dto.job.JobRequest;
 import com.jobportal.dto.job.JobResponse;
+import com.jobportal.dto.job.JobSearchCriteria;
+import com.jobportal.dto.job.JobSortOption;
 import com.jobportal.exception.BadRequestException;
 import com.jobportal.exception.InvalidJobStateException;
 import com.jobportal.exception.ResourceNotFoundException;
@@ -18,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -52,9 +55,6 @@ public class JobService {
                 .map(cid -> cid.equals(job.getCompany().getId()))
                 .orElse(false);
 
-        // Published jobs are public. Anything else -- and every other
-        // company's non-published job -- looks exactly like it doesn't
-        // exist, to anyone who isn't the owning recruiter.
         if (job.getStatus() != JobStatus.PUBLISHED && !isOwner) {
             throw new ResourceNotFoundException("Job not found");
         }
@@ -70,6 +70,36 @@ public class JobService {
     @Transactional(readOnly = true)
     public Page<JobResponse> listMyCompanyJobs(Pageable pageable) {
         return jobRepository.findByCompanyId(currentUserService.getCompanyId(), pageable).map(JobResponse::from);
+    }
+
+    /**
+     * The advanced, multi-filter candidate-facing search. Deliberately a
+     * separate endpoint/method from listPublishedJobs — that one is a plain
+     * browse list, this one is the keyword+filter+sort search described in
+     * the spec, backed by the FULLTEXT index for keyword matching.
+     */
+    @Transactional(readOnly = true)
+    public Page<JobResponse> search(JobSearchCriteria criteria, Pageable pageable) {
+        List<String> skills = normalizeSkills(criteria.skills());
+        boolean hasSkillFilter = !skills.isEmpty();
+
+        Page<Job> jobs = jobRepository.search(
+                blankToNull(criteria.keyword()),
+                blankToNull(criteria.location()),
+                criteria.employmentType() == null ? null : criteria.employmentType().name(),
+                criteria.experienceLevel() == null ? null : criteria.experienceLevel().name(),
+                criteria.workMode() == null ? null : criteria.workMode().name(),
+                criteria.salaryMin(),
+                criteria.salaryMax(),
+                criteria.postedAfter(),
+                criteria.deadlineBefore(),
+                hasSkillFilter,
+                hasSkillFilter ? skills : List.of("__none__"),
+                sortModeOf(criteria.sortBy()),
+                pageable
+        );
+
+        return jobs.map(JobResponse::from);
     }
 
     @Transactional
@@ -125,7 +155,6 @@ public class JobService {
         jobRepository.delete(job);
     }
 
-    /** Tenant-scoped load, used by every mutation method — see Phase 4. */
     private Job loadOwnedJob(UUID jobId) {
         return jobRepository.findByIdAndCompanyId(jobId, currentUserService.getCompanyId())
                 .orElseThrow(() -> new ResourceNotFoundException("Job not found"));
@@ -163,5 +192,31 @@ public class JobService {
         }
         job.setApplicationDeadline(request.applicationDeadline());
         job.replaceSkills(request.skills());
+    }
+
+    private List<String> normalizeSkills(List<String> skills) {
+        if (skills == null) {
+            return List.of();
+        }
+        return skills.stream()
+                .filter(s -> s != null && !s.isBlank())
+                .map(String::trim)
+                .toList();
+    }
+
+    private String blankToNull(String value) {
+        return (value == null || value.isBlank()) ? null : value.trim();
+    }
+
+    private int sortModeOf(JobSortOption option) {
+        if (option == null) return 1; // default: NEWEST
+        return switch (option) {
+            case RELEVANCE -> 0;
+            case NEWEST -> 1;
+            case OLDEST -> 2;
+            case SALARY_HIGH -> 3;
+            case SALARY_LOW -> 4;
+            case DEADLINE_SOON -> 5;
+        };
     }
 }

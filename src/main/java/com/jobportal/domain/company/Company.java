@@ -7,12 +7,14 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @Entity
 @Table(name = "company")
+@BatchSize(size = 25)
 public class Company extends BaseEntity {
 
     @Column(nullable = false)

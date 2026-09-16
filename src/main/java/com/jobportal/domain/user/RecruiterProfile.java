@@ -12,12 +12,14 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @Entity
 @Table(name = "recruiter_profile")
+@BatchSize(size = 25)
 public class RecruiterProfile extends BaseEntity {
 
     @OneToOne(fetch = FetchType.LAZY)
