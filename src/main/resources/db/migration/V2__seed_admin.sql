@@ -4,7 +4,7 @@
 
 INSERT INTO app_user (id, email, password_hash, role, is_active, is_email_verified)
 VALUES (
-           uuid_generate_v4(),
+           UUID(),
            'admin@jobportal.com',
            '$2b$10$ddMsBDObQ3zQtcNxY1jhyOwm3H2SyKgtYaTSg.KRCILJAhgr4PIQ2',
            'ADMIN',

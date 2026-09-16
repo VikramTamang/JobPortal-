@@ -2,7 +2,7 @@
 -- the Admin company-management endpoints exist (later phase).
 INSERT INTO company (id, name, slug, description, is_active)
 VALUES (
-           uuid_generate_v4(),
+           UUID(),
            'Acme Corp',
            'acme-corp',
            'Demo company seeded for local development and testing.',

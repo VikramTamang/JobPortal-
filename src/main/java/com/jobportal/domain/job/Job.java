@@ -30,11 +30,6 @@ import java.util.List;
 @Table(name = "job")
 public class Job extends BaseEntity {
 
-    /**
-     * Denormalized tenant discriminator. Every tenant-scoped query
-     * filters directly on this column — see TenantContext / service layer
-     * in Phase 4.
-     */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_id", nullable = false)
     private Company company;
@@ -98,5 +93,17 @@ public class Job extends BaseEntity {
         skill.setJob(this);
         skill.setSkillName(skillName);
         this.skills.add(skill);
+    }
+
+    /**
+     * orphanRemoval=true on the collection means clearing it and re-adding
+     * deletes the old JobSkill rows and inserts fresh ones — simpler and
+     * safer than diffing old vs new skill lists on every update.
+     */
+    public void replaceSkills(List<String> skillNames) {
+        this.skills.clear();
+        if (skillNames != null) {
+            skillNames.forEach(this::addSkill);
+        }
     }
 }

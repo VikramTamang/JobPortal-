@@ -48,11 +48,12 @@ public class AuditLog extends IdentifiedEntity {
     @Column(name = "entity_type", nullable = false, length = 100)
     private String entityType;
 
-    @Column(name = "entity_id")
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "entity_id", length = 36)
     private UUID entityId;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(columnDefinition = "jsonb")
+    @Column(columnDefinition = "JSON")
     private String metadata;
 
     @Column(name = "ip_address", length = 64)

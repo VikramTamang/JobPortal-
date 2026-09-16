@@ -1,4 +1,3 @@
-// Notification.java
 package com.jobportal.domain.notification;
 
 import com.jobportal.domain.common.IdentifiedEntity;
@@ -15,6 +14,8 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
@@ -50,7 +51,8 @@ public class Notification extends IdentifiedEntity {
     @Column(name = "related_entity_type", length = 50)
     private String relatedEntityType;
 
-    @Column(name = "related_entity_id")
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "related_entity_id", length = 36)
     private UUID relatedEntityId;
 
     @CreatedDate

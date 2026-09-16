@@ -6,15 +6,15 @@ spring:
     active: dev
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/jobportal
-    username: jobportal
-    password: jobportal_dev_pw
+    url: jdbc:mysql://localhost:3306/jobportal?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&createDatabaseIfNotExist=true
+    username: root
+    password: WJ28@krhps
+    driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10
 
   jpa:
     hibernate:
-      # Flyway owns the schema; Hibernate should only validate it matches.
       ddl-auto: validate
     open-in-view: false
     properties:
@@ -63,10 +63,10 @@ springdoc:
 app:
   jwt:
     secret: ${JWT_SECRET:dev-only-secret-key-change-me-please-32bytes-min}
-    access-token-expiration-ms: 900000        # 15 minutes
-    refresh-token-expiration-ms: 604800000    # 7 days
+    access-token-expiration-ms: 900000
+    refresh-token-expiration-ms: 604800000
   storage:
-    mode: local          # local | s3
+    mode: local
     local:
       base-path: ./uploads
     s3:

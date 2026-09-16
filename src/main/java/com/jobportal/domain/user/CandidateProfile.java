@@ -42,7 +42,7 @@ public class CandidateProfile extends BaseEntity {
     @Column(name = "experience_years")
     private BigDecimal experienceYears;
 
-    @JdbcTypeCode(SqlTypes.ARRAY)
-    @Column(name = "skills", columnDefinition = "text[]")
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "skills", columnDefinition = "JSON")
     private List<String> skills;
 }
