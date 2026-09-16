@@ -3,10 +3,12 @@ package com.jobportal.controller;
 import com.jobportal.domain.job.EmploymentType;
 import com.jobportal.domain.job.ExperienceLevel;
 import com.jobportal.domain.job.WorkMode;
+import com.jobportal.dto.application.ApplicationResponse;
 import com.jobportal.dto.job.JobRequest;
 import com.jobportal.dto.job.JobResponse;
 import com.jobportal.dto.job.JobSearchCriteria;
 import com.jobportal.dto.job.JobSortOption;
+import com.jobportal.service.ApplicationService;
 import com.jobportal.service.JobService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -43,6 +45,7 @@ import java.util.UUID;
 public class JobController {
 
     private final JobService jobService;
+    private final ApplicationService applicationService;
 
     @PostMapping
     @PreAuthorize("hasRole('RECRUITER')")
@@ -92,6 +95,14 @@ public class JobController {
     @Operation(summary = "Get a job by id — published jobs are public, others visible only to the owning company")
     public JobResponse get(@PathVariable UUID jobId) {
         return jobService.getJob(jobId);
+    }
+
+    @GetMapping("/{jobId}/applications")
+    @PreAuthorize("hasRole('RECRUITER')")
+    @Operation(summary = "List applicants for one of the recruiter's own jobs")
+    public Page<ApplicationResponse> listApplications(
+            @PathVariable UUID jobId, @PageableDefault(size = 20) Pageable pageable) {
+        return applicationService.listForJob(jobId, pageable);
     }
 
     @PutMapping("/{jobId}")

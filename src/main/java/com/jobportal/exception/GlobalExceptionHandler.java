@@ -35,8 +35,8 @@ public class GlobalExceptionHandler {
                 .body(ApiError.of(409, "Conflict", ex.getMessage(), req.getRequestURI()));
     }
 
-    @ExceptionHandler(InvalidJobStateException.class)
-    public ResponseEntity<ApiError> handleInvalidJobState(InvalidJobStateException ex, HttpServletRequest req) {
+    @ExceptionHandler({InvalidJobStateException.class, InvalidApplicationStateException.class})
+    public ResponseEntity<ApiError> handleInvalidWorkflowState(RuntimeException ex, HttpServletRequest req) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiError.of(409, "Conflict", ex.getMessage(), req.getRequestURI()));
     }
