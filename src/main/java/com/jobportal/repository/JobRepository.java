@@ -22,17 +22,9 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
 
     Page<Job> findByStatus(JobStatus status, Pageable pageable);
 
-    /**
-     * Every filter is optional and expressed as (:param IS NULL OR ...), so
-     * a single query handles every combination the candidate might send —
-     * no dynamic SQL string-building, no injection surface. Sort order is
-     * chosen with CASE WHEN :sortMode = N rather than relying on Pageable's
-     * generic Sort, because Pageable.getSort() maps to JPA entity property
-     * names, not raw SQL column names, and this is a native query.
-     *
-     * Uses the FULLTEXT index on (title, description) for keyword search —
-     * the whole reason that index exists in the schema.
-     */
+    /** Used by DeadlineReminderService — exact-date match so each job triggers exactly one reminder, not one per day as the deadline nears. */
+    List<Job> findByStatusAndApplicationDeadline(JobStatus status, LocalDate applicationDeadline);
+
     @Query(
             value = """
             SELECT j.* FROM job j
