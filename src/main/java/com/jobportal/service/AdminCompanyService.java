@@ -7,6 +7,7 @@ import com.jobportal.exception.DuplicateResourceException;
 import com.jobportal.exception.ResourceNotFoundException;
 import com.jobportal.repository.CompanyRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -14,12 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
-/**
- * Unlike CompanyService/RecruiterProfileService, this one DOES take a
- * companyId parameter — because ADMIN is the one role explicitly permitted
- * to act across every tenant. Access to this whole service is gated by
- * @PreAuthorize("hasRole('ADMIN')") at the controller layer.
- */
 @Service
 @RequiredArgsConstructor
 public class AdminCompanyService {
@@ -48,6 +43,14 @@ public class AdminCompanyService {
         return CompanyAdminResponse.from(company);
     }
 
+    /**
+     * Evicts the recruiter-facing companyInfo cache for this company --
+     * without this, a recruiter whose company Admin just deactivated would
+     * keep seeing active=true from cache for up to 30 minutes (the
+     * companyInfo TTL), which matters here specifically because account
+     * status is a security-relevant field.
+     */
+    @CacheEvict(cacheNames = "companyInfo", key = "#companyId")
     @Transactional
     public CompanyAdminResponse setActive(UUID companyId, boolean active) {
         Company company = companyRepository.findById(companyId)

@@ -14,6 +14,9 @@ import com.jobportal.repository.JobRepository;
 import com.jobportal.repository.RecruiterProfileRepository;
 import com.jobportal.security.CurrentUserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -44,8 +47,19 @@ public class JobService {
 
         jobRepository.save(job);
         return JobResponse.from(job);
+        // No cache eviction needed here -- a DRAFT job appears in no
+        // public listing, search, or (uncached) detail view yet.
     }
 
+    /**
+     * unless = "..." means: only cache the result if the job is PUBLISHED.
+     * A DRAFT/CLOSED/ARCHIVED job's response depends on WHO is asking (the
+     * owner-visibility check above), so caching it would either leak it to
+     * strangers or require the requester's identity baked into the cache
+     * key -- both wrong. A PUBLISHED job's response is identical for every
+     * caller, so it's safe to share across all requests once cached.
+     */
+    @Cacheable(cacheNames = "jobDetails", key = "#jobId", unless = "#result.status().name() != 'PUBLISHED'")
     @Transactional(readOnly = true)
     public JobResponse getJob(UUID jobId) {
         Job job = jobRepository.findById(jobId)
@@ -62,6 +76,7 @@ public class JobService {
         return JobResponse.from(job);
     }
 
+    @Cacheable(cacheNames = "jobListings", key = "#pageable.pageNumber + '-' + #pageable.pageSize")
     @Transactional(readOnly = true)
     public Page<JobResponse> listPublishedJobs(Pageable pageable) {
         return jobRepository.findByStatus(JobStatus.PUBLISHED, pageable).map(JobResponse::from);
@@ -69,15 +84,18 @@ public class JobService {
 
     @Transactional(readOnly = true)
     public Page<JobResponse> listMyCompanyJobs(Pageable pageable) {
+        // A recruiter's own dashboard, any status, always fresh -- not cached.
         return jobRepository.findByCompanyId(currentUserService.getCompanyId(), pageable).map(JobResponse::from);
     }
 
     /**
-     * The advanced, multi-filter candidate-facing search. Deliberately a
-     * separate endpoint/method from listPublishedJobs — that one is a plain
-     * browse list, this one is the keyword+filter+sort search described in
-     * the spec, backed by the FULLTEXT index for keyword matching.
+     * Key is a hash of every filter field plus the page/size, since search
+     * has far too many parameter combinations to name individually. The
+     * short 60s TTL on the "jobSearch" cache (set in RedisConfig) is what
+     * bounds staleness here rather than precise eviction.
      */
+    @Cacheable(cacheNames = "jobSearch",
+            key = "T(java.util.Objects).hash(#criteria, #pageable.pageNumber, #pageable.pageSize)")
     @Transactional(readOnly = true)
     public Page<JobResponse> search(JobSearchCriteria criteria, Pageable pageable) {
         List<String> skills = normalizeSkills(criteria.skills());
@@ -102,6 +120,19 @@ public class JobService {
         return jobs.map(JobResponse::from);
     }
 
+    /**
+     * @Caching bundles multiple evictions under one method. Job listings
+     * and search are evicted entirely (allEntries = true) rather than
+     * precisely, because a single job update can affect an unbounded
+     * number of listing pages and search-filter combinations -- tracking
+     * exactly which cache entries a given job appears in isn't worth the
+     * complexity here. This is a deliberate simplicity-over-precision
+     * trade-off: reads stay fast, writes pay a brief "cold cache" cost.
+     */
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "jobDetails", key = "#jobId"),
+            @CacheEvict(cacheNames = {"jobListings", "jobSearch"}, allEntries = true)
+    })
     @Transactional
     public JobResponse updateJob(UUID jobId, JobRequest request) {
         Job job = loadOwnedJob(jobId);
@@ -116,6 +147,10 @@ public class JobService {
         return JobResponse.from(job);
     }
 
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "jobDetails", key = "#jobId"),
+            @CacheEvict(cacheNames = {"jobListings", "jobSearch"}, allEntries = true)
+    })
     @Transactional
     public JobResponse publish(UUID jobId) {
         Job job = loadOwnedJob(jobId);
@@ -126,6 +161,10 @@ public class JobService {
         return JobResponse.from(job);
     }
 
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "jobDetails", key = "#jobId"),
+            @CacheEvict(cacheNames = {"jobListings", "jobSearch"}, allEntries = true)
+    })
     @Transactional
     public JobResponse close(UUID jobId) {
         Job job = loadOwnedJob(jobId);
@@ -135,6 +174,10 @@ public class JobService {
         return JobResponse.from(job);
     }
 
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "jobDetails", key = "#jobId"),
+            @CacheEvict(cacheNames = {"jobListings", "jobSearch"}, allEntries = true)
+    })
     @Transactional
     public JobResponse archive(UUID jobId) {
         Job job = loadOwnedJob(jobId);
@@ -153,6 +196,7 @@ public class JobService {
                             + job.getStatus());
         }
         jobRepository.delete(job);
+        // DRAFT jobs are never cached (see getJob's "unless"), so no eviction needed.
     }
 
     private Job loadOwnedJob(UUID jobId) {
@@ -209,7 +253,7 @@ public class JobService {
     }
 
     private int sortModeOf(JobSortOption option) {
-        if (option == null) return 1; // default: NEWEST
+        if (option == null) return 1;
         return switch (option) {
             case RELEVANCE -> 0;
             case NEWEST -> 1;
