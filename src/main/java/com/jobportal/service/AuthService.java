@@ -36,6 +36,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final JwtProperties jwtProperties;
     private final RefreshTokenService refreshTokenService;
+    private final AuditService auditService;
 
     @Transactional
     public AuthResponse registerCandidate(RegisterCandidateRequest request) {
@@ -55,6 +56,8 @@ public class AuthService {
         profile.setFullName(request.fullName());
         profile.setPhone(request.phone());
         candidateProfileRepository.save(profile);
+
+        auditService.recordForActor(user, "USER_REGISTERED", "USER", user.getId());
 
         return issueTokens(user);
     }
@@ -88,6 +91,8 @@ public class AuthService {
         profile.setJobTitle(request.jobTitle());
         recruiterProfileRepository.save(profile);
 
+        auditService.recordForActor(user, "USER_REGISTERED", "USER", user.getId());
+
         return issueTokens(user);
     }
 
@@ -103,6 +108,8 @@ public class AuthService {
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             throw new InvalidCredentialsException();
         }
+
+        auditService.recordForActor(user, "LOGIN", "USER", user.getId());
 
         return issueTokens(user);
     }

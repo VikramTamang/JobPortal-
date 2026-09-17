@@ -9,4 +9,5 @@ import java.util.UUID;
 public interface CompanyRepository extends JpaRepository<Company, UUID> {
     Optional<Company> findBySlug(String slug);
     boolean existsBySlug(String slug);
+    long countByActiveTrue();
 }

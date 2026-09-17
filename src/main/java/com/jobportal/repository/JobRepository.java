@@ -2,6 +2,7 @@ package com.jobportal.repository;
 
 import com.jobportal.domain.job.Job;
 import com.jobportal.domain.job.JobStatus;
+import com.jobportal.dto.analytics.JobApplicationCount;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -22,8 +23,29 @@ public interface JobRepository extends JpaRepository<Job, UUID> {
 
     Page<Job> findByStatus(JobStatus status, Pageable pageable);
 
-    /** Used by DeadlineReminderService — exact-date match so each job triggers exactly one reminder, not one per day as the deadline nears. */
     List<Job> findByStatusAndApplicationDeadline(JobStatus status, LocalDate applicationDeadline);
+
+    long countByCompanyId(UUID companyId);
+
+    long countByCompanyIdAndStatus(UUID companyId, JobStatus status);
+
+    /** Platform-wide, for Admin analytics — no company scoping. */
+    long countByStatus(JobStatus status);
+
+    /**
+     * LEFT JOIN so a job with zero applications still appears with count 0
+     * — an INNER JOIN would silently drop it from the breakdown, which
+     * would misrepresent "applications per job" for a freshly published
+     * posting with no applicants yet.
+     */
+    @Query("""
+            SELECT new com.jobportal.dto.analytics.JobApplicationCount(j.id, j.title, COUNT(a))
+            FROM Job j LEFT JOIN Application a ON a.job = j
+            WHERE j.company.id = :companyId
+            GROUP BY j.id, j.title
+            ORDER BY COUNT(a) DESC
+            """)
+    List<JobApplicationCount> applicationCountsByJobForCompany(@Param("companyId") UUID companyId);
 
     @Query(
             value = """
