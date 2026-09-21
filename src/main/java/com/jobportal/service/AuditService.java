@@ -28,7 +28,6 @@ public class AuditService {
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
 
-    /** For actions performed by the currently authenticated user — the common case (job actions, resume access, etc). */
     @Transactional
     public void record(String action, String entityType, UUID entityId) {
         record(action, entityType, entityId, null);
@@ -40,13 +39,6 @@ public class AuditService {
         write(actor, action, entityType, entityId, metadata);
     }
 
-    /**
-     * For actions with no authenticated SecurityContext — login and
-     * registration happen on permitAll endpoints, before any JWT exists,
-     * so CurrentUserService has nothing to read from. The caller already
-     * has the User in hand (just loaded or just created), so it's passed
-     * in directly instead.
-     */
     @Transactional
     public void recordForActor(User actor, String action, String entityType, UUID entityId) {
         write(actor, action, entityType, entityId, null);
@@ -60,21 +52,21 @@ public class AuditService {
     }
 
     private void write(User actor, String action, String entityType, UUID entityId, Map<String, Object> metadata) {
-        AuditLog log = new AuditLog();
-        log.setActor(actor);
-        log.setAction(action);
-        log.setEntityType(entityType);
-        log.setEntityId(entityId);
+        AuditLog auditLog = new AuditLog();
+        auditLog.setActor(actor);
+        auditLog.setAction(action);
+        auditLog.setEntityType(entityType);
+        auditLog.setEntityId(entityId);
         if (actor != null && actor.getCompany() != null) {
-            log.setCompany(actor.getCompany());
+            auditLog.setCompany(actor.getCompany());
         }
         if (metadata != null && !metadata.isEmpty()) {
             try {
-                log.setMetadata(objectMapper.writeValueAsString(metadata));
+                auditLog.setMetadata(objectMapper.writeValueAsString(metadata));
             } catch (Exception e) {
                 log.warn("Failed to serialize audit metadata for action {}: {}", action, e.getMessage());
             }
         }
-        auditLogRepository.save(log);
+        auditLogRepository.save(auditLog);
     }
 }

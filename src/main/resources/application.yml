@@ -79,14 +79,13 @@ app:
     allowed-origins: "http://localhost:3000"
   rate-limit:
     requests-per-minute: 60
-
-logging:
-  level:
-    com.jobportal: DEBUG
-    org.hibernate.SQL: DEBUG
-
   notifications:
     from-address: no-reply@jobportal.com
     dispatch-interval-ms: 15000
     deadline-reminder-days: 3
     deadline-reminder-cron: "0 0 8 * * *"
+
+logging:
+  level:
+    com.jobportal: DEBUG
+    org.hibernate.SQL: DEBUG
